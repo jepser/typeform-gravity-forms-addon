@@ -22,71 +22,65 @@ if (class_exists("GFForms")) {
         protected $_title = "Typeform Add-On";
         protected $_short_title = "Typeform";
 
-        var $token;
-        var $typeform_url;
-
-        public function init(){
+        public function init()
+        {
             parent::init();
 
-            $this->typeform_url = 'https://api.typeform.io/latest/';
-            $this->token = $this->get_plugin_setting('typeform-token');
+            $token = $this->get_plugin_setting('typeform-token');
+            $this->api = new TypeformApi($token);
+            $this->timesSaved = 0;
 
-            add_filter('gform_shortcode_form', [ $this, 'get_form'], 1, 3);
 
-            add_filter('gform_form_update_meta', [ $this, 'get_design'], 10, 3);
+            add_filter('gform_shortcode_form', [$this, 'getTypeform'], 1, 3);
 
-            add_filter('gform_post_update_form_meta', [ $this, 'redirect_because_fail']);
+            add_filter('gform_after_save_form', [$this, 'saveTypeformId']);
+
+            // add_filter('gform_form_update_meta', [ $this, 'saveDesign'], 10, 3);
+
+            // add_filter('gform_post_update_form_meta', [ $this, 'redirect_because_fail']);
 
         }
 
-        function redirect_because_fail(){
-            ?>
-            <script>
-            location.reload();
-            </script>
-            <?php
+        public function save_form_settings($form, $settings)
+        {
+            $design_id = $this->getDesign($settings);
+            $settings['design-id'] = $design_id;
+
+            return parent::save_form_settings($form, $settings);
         }
 
-        function get_design($form_meta, $form_id, $meta_name){
 
-            $form_data = $form_meta[$this->_slug];
+        public function getDesign($settings)
+        {
 
-            $design_args = [
-                'colors'    => [
-                    'question'  => $form_data['font-color'],
-                    'button'  => $form_data['button-color'],
-                    'answer'  => $form_data['answer-color'],
-                    'background'  => $form_data['background-color']
-                ],
-                'font'      => $form_data['font-family']
-            ];
-
-            // echo '<pre>'; print_r($design_args); echo '</pre>';
-
-            //is a typeform settings form
-            if(isset($form_data['form-typeform-settings'])){
-                $design_response = wp_remote_post($this->typeform_url . 'designs', [
-                    'headers'   => [
-                        'X-API-TOKEN'   => $this->token
-                    ],
-                    'body'  => json_encode($design_args)
-                ]);
-                if ( is_wp_error( $design_response ) ) {
-                   $error_message = $design_response->get_error_message();
-                   echo "Something went wrong: $error_message";
-                } else {
-                    $design_data = json_decode($design_response['body']);
-                    $form_meta[$this->_slug]['design-id'] = $design_data->id;
-                    // echo '<pre>'; print_r($design_data); echo '</pre>';
-                    // echo '<pre>'; print_r($form_meta[$this->_slug]); echo '</pre>';
-                }
-
+            try {
+                $response = $this->api->getDesignId($settings);
+                return $response->id;
+            } catch (Exception $e) {
+                return $e;
             }
-
-            return $form_meta;
+            
         }
 
-        public function form_settings_fields($form) {
+        public function saveTypeformId($form, $is_new)
+        {
+            $response = $this->getTypeforId($form);
+            // echo '<pre>'; print_r($response); echo '</pre>';
+            $form_id = $response->id;
+
+
+
+        }
+
+        public function getTypeforId($form)
+        {
+            $webhook = apply_filters('typeform/webhook', add_query_arg('typeform-response', $form['id'], get_bloginfo('url')));
+            $response = $this->api->getFormId($form['fields'], $webhook, $form['title'], ['form-' . $form['id']]);            
+            return $response;
+        }
+
+        public function form_settings_fields($form)
+        {
 
             return [
                 [
@@ -111,7 +105,7 @@ if (class_exists("GFForms")) {
                     "fields" => [
                         [
                             "label"   => "Design ID",
-                            "type"    => "text",
+                            "type"    => "hidden",
                             "name"    => "design-id",
                         ],
                         [
@@ -317,114 +311,44 @@ if (class_exists("GFForms")) {
             return array_merge(parent::styles(), $styles);
         }
 
-        function get_form($shortcode_string, $attributes, $content){
-
+        public function getTypeform($shortcode_string, $attributes, $content)
+        {
             // var_dump($shortcode_string, $attributes, $content);
             $form_id = $attributes['id'];
-
-            //getting form 
             $gf = new GFAPI();
             $form = $gf->get_form($form_id);
 
-            //getting if we have to render this typeform
             $form_settings = $this->get_form_settings($form);
 
-            if(!$form_settings['enable-typeform']) return $shortcode_string;
+            if (!$form_settings['enable-typeform']) {
+                return $shortcode_string;
+            }
 
-            //(show title, show description, fields)
-            $this->render_typeform($attributes['title'], $attributes['description'], $form);
+            $this->renderTypeform($attributes['title'], $attributes['description'], $form);
         }
 
-        function render_typeform($show_title, $show_description, $form){
-            // echo '<pre>'; print_r($form['fields']); echo '</pre>';
+        public function renderTypeform($show_title, $show_description, $form)
+        {
+            
+            echo 'hola';
+            // $gf = new GFAPI();
+            // $form_data = $gf->get_form($form['id']);
+
+            // //getting if we have to render this typeform
+            // $form_settings = $this->get_form_settings($form_data);
+
+            // $new_form = [
+            //     'title'     => $form['title'],
+            //     'fields'    => $typeform_fields,
+            //     'design_id' => $form_settings['design-id']
+            // ];
+            // $this->parseTypeform($new_form);
             // die();
-            foreach ($form['fields'] as $field) {
-                $typeform_fields[] = $this->convert_field($field);
-            }
-
-            //getting form 
-            $gf = new GFAPI();
-            $form_data = $gf->get_form($form['id']);
-
-            //getting if we have to render this typeform
-            $form_settings = $this->get_form_settings($form_data);
-
-            $new_form = [
-                'title'     => $form['title'],
-                'fields'    => $typeform_fields,
-                'design_id' => $form_settings['design-id']
-            ];
-            $this->parse_typeform($new_form);
-            die();
         }
 
-        function convert_field($field){
+        
 
-            $multiple_options_field = [
-                'select',
-                'radio',
-                'checkbox'
-            ];
-
-            $new_field = [
-                'question'      => $field['label'],
-                'description'   => $field['description'],
-                'required'      => ($field['isRequired']) ? true: false,
-                'tags'          => ['field-' . $field['id']]
-            ];
-
-            if(in_array($field['type'], $multiple_options_field)){
-                $new_field['choices'] = [];
-
-                foreach($field['choices'] as $option){
-                    $new_field['choices'][] = [
-                        'label' => $option['text']
-                    ];
-                }
-            }
-            switch ($field['type']) {
-                case 'text':
-                    $new_field['type'] = 'short_text';
-                    if($field['maxLength']){
-                        $new_field['max_characters'] = (int) $field['maxLength'];
-                    }
-                    break;
-                case 'textarea':
-                    $new_field['type'] = 'long_text';
-                    if($field['maxLength']){
-                        $new_field['max_characters'] = (int) $field['maxLength'];
-                    }
-                    break;
-                case 'email':
-                    $new_field['type'] = 'email';
-                    break;
-                case 'select':
-                    $new_field['type'] = 'dropdown';
-                    break;
-                case 'radio':
-                    $new_field['type'] = 'multiple_choice';
-                    break;
-                case 'checkbox':
-                    $new_field['type'] = 'multiple_choice';
-                    $new_field['allow_multiple_selections'] = true;
-                    break;
-                case 'number':
-                    $new_field['type'] = 'number';
-                    if($field['rangeMin']){
-                        $new_field['min_value'] = (int) $field['rangeMin'];
-                    }
-                    if($field['rangeMax']){
-                        $new_field['max_value'] = (int) $field['rangeMax'];
-                    }
-                    break;
-                default:
-                    # code...
-                    break;
-            }       
-            return $new_field;
-        }
-
-        function parse_typeform($form){
+        function parseTypeform($form){
 
             $create_response = wp_remote_post($this->typeform_url . 'forms', [
                 'headers'   => [

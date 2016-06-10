@@ -3,54 +3,6 @@
 class TypeformHandler
 {
 
-    public static function setDesignFields($data)
-    {
-        $design_args = [
-            'colors'    => [
-                'question'  => $data['font-color'],
-                'button'  => $data['button-color'],
-                'answer'  => $data['answer-color'],
-                'background'  => $data['background-color']
-            ],
-            'font'      => $data['font-family']
-        ];
-        return $data;
-    }
-
-    public static function convertFields($fields)
-    {
-        if (!is_array($fields)) {
-            return;
-        }
-
-        $converted_fields = [];
-
-        foreach ($fields as $field) {
-            $converted_fields[] = TypeformHandler::convertField($field);
-        }
-
-        return $converted_fields;
-    }
-
-    public static function convertField($field)
-    {
-
-        $new_field = [
-            'question'      => $field['label'],
-            'description'   => $field['description'],
-            'required'      => ($field['isRequired']) ? true: false,
-            'tags'          => ['field-' . $field['id']]
-        ];
-
-        $new_field['type'] = TypeformHandler::getFieldType($field);
-        $new_field['choices'] = TypeformHandler::getFieldChoices($field);
-
-        $field_options = TypeformHandler::getFieldOptions($field);
-        
-
-        return array($new_field, $field_options);
-    }
-
     public static function getFieldStructure($field)
     {
 
@@ -111,7 +63,56 @@ class TypeformHandler
             ]
         ];
 
-        return (isset($available_fields[$type])) ? $available_fields[$type]: [];
+        return (isset($available_fields[$field['type']])) ? $available_fields[$field['type']]: [];
+    }
+
+    public static function setDesignFields($data)
+    {
+        $design_args = [
+            'colors'    => [
+                'question'  => $data['font-color'],
+                'button'  => $data['button-color'],
+                'answer'  => $data['answer-color'],
+                'background'  => $data['background-color']
+            ],
+            'font'      => $data['font-family']
+        ];
+        return $design_args;
+    }
+
+    public static function convertFields($fields)
+    {
+        if (!is_array($fields)) {
+            return;
+        }
+
+        $converted_fields = [];
+
+        foreach ($fields as $field) {
+            $converted_fields[] = TypeformHandler::convertField($field);
+        }
+
+        return $converted_fields;
+    }
+
+    public static function convertField($field)
+    {
+
+        $new_field = [
+            'question'      => $field['label'],
+            // 'description'   => $field['description'],
+            // 'required'      => ($field['isRequired']) ? true: false,
+            // 'tags'          => ['field-' . $field['id']]
+        ];
+
+        $new_field['type'] = TypeformHandler::getFieldType($field);
+        // $new_field['choices'] = TypeformHandler::getFieldChoices($field);
+
+        // $field_options = TypeformHandler::getFieldOptions($field);
+        $field_options = [];
+        
+
+        return array_merge($new_field, $field_options);
     }
 
     public static function getFieldOptions($field)
@@ -133,21 +134,21 @@ class TypeformHandler
     {
         $field_structure = TypeformHandler::getFieldStructure($field);
 
-        return (isset($field_structure['options'])) ?: [];
+        return (isset($field_structure['options'])) ? $field_structure['options']: [];
     }
 
     public static function getFieldType($field)
     {
         $field_structure = TypeformHandler::getFieldStructure($field);
 
-        return (isset($field_structure['type'])) ?: 'text';
+        return (isset($field_structure['type'])) ? $field_structure['type']: 'text';
     }
 
     public static function getFieldChoices($field)
     {
         $structured_field = TypeformHandler::getFieldStructure($field);
         $choices = [];
-        
+
         if ($structured_field['multiple']) {
             foreach ($field['choices'] as $option) {
                 $nchoices[] = [

@@ -12,15 +12,20 @@ class TypeformApi
     public function makeCall($endpoint = '', $method = 'GET', $data = [])
     {
         if ($method == 'GET') {
-            $request = wp_remote_get($this->typeform_url . $endpoint);
+            $request = wp_remote_get($this->url . $endpoint);
         } else {
-            $request = wp_remote_post($this->typeform_url . $endpoint, [
+
+            $request = wp_remote_post($this->url . $endpoint, [
                 'headers'   => [
-                    'X-API-TOKEN'   => $this->token
+                    'X-API-TOKEN'   => $this->token,
+                    'Content-Type'  => 'application/json'
                 ],
                 'body'  => json_encode($data)
             ]);
         }
+
+        echo '<pre>'; print_r($data); echo '</pre>';
+        echo '<pre>'; print_r(json_encode($data)); echo '</pre>';
 
         return $request;
     }
@@ -31,7 +36,7 @@ class TypeformApi
             $error_message = $response->get_error_message();
             return ['error' => "Something went wrong: $error_message"];
         } else {
-            return json_decode($design_response['body']);
+            return json_decode($response['body']);
         }
     }
 
@@ -45,16 +50,29 @@ class TypeformApi
         $request = $this->makeCall('/designs', 'POST', $design_args);
         $response = $this->getResponse($request);
 
-        return $response;
-        // echo '<pre>'; print_r($design_data); echo '</pre>';
+        // echo '<pre>'; print_r($response); echo '</pre>';
         // echo '<pre>'; print_r($form_meta[$this->_slug]); echo '</pre>';
+
+        return $response;
     }
 
-    public function getFormId($data)
+    public function getFormId($data, $webhook, $title,  $tags = [])
     {
-        $form_args = TypeformHandler::convertFields($data);
+        $form_fields = TypeformHandler::convertFields($data);
+
+        $forms_args = [
+            'title' => $title,
+            'tags'  => (!is_array($tags)) ? [$tags]: $tags,
+            'webhook_submit_url'    =>  '',//$webhook,
+            'fields'    => $form_fields
+        ];
+
         $request = $this->makeCall('/forms', 'POST', $form_args);
         $response = $this->getResponse($request);
+
+        echo '<pre>'; print_r($forms_args); echo '</pre>';
+        echo '<pre>'; print_r($request); echo '</pre>';
+        echo '<pre>'; print_r($response); echo '</pre>';
 
         return $response;
     }
