@@ -1,4 +1,5 @@
-<?php 
+<?php
+
 
 /*
 Plugin Name: Gravity Forms - Typeform Addon
@@ -12,12 +13,13 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
 $includes = [
-	// 'settings.php',
-	// 'capture.php',
-	'tf-gf.php'//,
-	// 'capture.php'
+    // 'settings.php',
+    'tf-data-structure.php',
+    'tf-api.php',
+    'tf-gf.php',
+    // 'capture.php'
 ];
 
-foreach($includes as $i){
-	include($i);
+foreach ($includes as $i) {
+    include $i;
 }
