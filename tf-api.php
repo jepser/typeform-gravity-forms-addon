@@ -14,7 +14,6 @@ class TypeformApi
         if ($method == 'GET') {
             $request = wp_remote_get($this->url . $endpoint);
         } else {
-
             $request = wp_remote_post($this->url . $endpoint, [
                 'headers'   => [
                     'X-API-TOKEN'   => $this->token,
@@ -23,10 +22,6 @@ class TypeformApi
                 'body'  => json_encode($data)
             ]);
         }
-
-        echo '<pre>'; print_r($data); echo '</pre>';
-        echo '<pre>'; print_r(json_encode($data)); echo '</pre>';
-
         return $request;
     }
 
@@ -58,21 +53,19 @@ class TypeformApi
 
     public function getFormId($data, $webhook, $title,  $tags = [])
     {
+
+
         $form_fields = TypeformHandler::convertFields($data);
 
-        $forms_args = [
+        $form_args = [
             'title' => $title,
-            'tags'  => (!is_array($tags)) ? [$tags]: $tags,
-            'webhook_submit_url'    =>  '',//$webhook,
+            'tags'  => $tags,
+            'webhook_submit_url'    =>  $webhook,
             'fields'    => $form_fields
         ];
 
         $request = $this->makeCall('/forms', 'POST', $form_args);
         $response = $this->getResponse($request);
-
-        echo '<pre>'; print_r($forms_args); echo '</pre>';
-        echo '<pre>'; print_r($request); echo '</pre>';
-        echo '<pre>'; print_r($response); echo '</pre>';
 
         return $response;
     }

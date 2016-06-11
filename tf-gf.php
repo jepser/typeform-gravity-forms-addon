@@ -52,7 +52,6 @@ if (class_exists("GFForms")) {
 
         public function getDesign($settings)
         {
-
             try {
                 $response = $this->api->getDesignId($settings);
                 return $response->id;
@@ -62,17 +61,31 @@ if (class_exists("GFForms")) {
             
         }
 
-        public function saveTypeformId($form, $is_new)
+        public function saveTypeformId($form, $is_new = false)
         {
-            $response = $this->getTypeforId($form);
-            // echo '<pre>'; print_r($response); echo '</pre>';
+            $response = $this->getTypeformData($form);
             $form_id = $response->id;
+            $form_url = $this->getTypeformUrl($response->_links);
 
+            $settings = parent::get_form_settings($form);
 
+            $settings['form-id'] = $form_id;
+            $settings['form-url'] = $form_url;
+
+            return parent::save_form_settings($form, $settings);
 
         }
 
-        public function getTypeforId($form)
+        public function getTypeformUrl($typeform_links)
+        {
+            foreach ($typeform_links as $link) {
+                if ($link->rel == 'form_render') {
+                    return $link->href;
+                }
+            }
+        }
+
+        public function getTypeformData($form)
         {
             $webhook = apply_filters('typeform/webhook', add_query_arg('typeform-response', $form['id'], get_bloginfo('url')));
             $response = $this->api->getFormId($form['fields'], $webhook, $form['title'], ['form-' . $form['id']]);            
@@ -107,6 +120,16 @@ if (class_exists("GFForms")) {
                             "label"   => "Design ID",
                             "type"    => "hidden",
                             "name"    => "design-id",
+                        ],
+                        [
+                            "label"   => "Form ID",
+                            "type"    => "hidden",
+                            "name"    => "form-id",
+                        ],
+                        [
+                            "label"   => "Form URL",
+                            "type"    => "hidden",
+                            "name"    => "form-url",
                         ],
                         [
                             "label"   => "",
@@ -249,7 +272,8 @@ if (class_exists("GFForms")) {
             ];
         }
 
-        public function plugin_settings_fields() {
+        public function plugin_settings_fields()
+        {
 
             return [
                 [
@@ -268,11 +292,13 @@ if (class_exists("GFForms")) {
             ];
         }
 
-        public function is_valid_setting($value){
+        public function is_valid_setting($value)
+        {
             return $value;
         }
 
-        public function scripts() {
+        public function scripts()
+        {
             $scripts = array(
                 array("handle"  => "my_script_js",
                       "src"     => $this->get_base_url() . "/js/my_script.js",
@@ -296,7 +322,8 @@ if (class_exists("GFForms")) {
             return array_merge(parent::scripts(), $scripts);
         }
 
-        public function styles() {
+        public function styles()
+        {
 
             $styles = array(
                 array("handle"  => "my_styles_css",
@@ -320,69 +347,29 @@ if (class_exists("GFForms")) {
 
             $form_settings = $this->get_form_settings($form);
 
-            if (!$form_settings['enable-typeform']) {
+            // echo '<pre>'; print_r($form); echo '</pre>';
+            // echo '<pre>'; print_r($form_settings); echo '</pre>';
+
+            if (!$form_settings['enable-typeform'] || !isset($form_settings['form-id'])) {
                 return $shortcode_string;
             }
 
-            $this->renderTypeform($attributes['title'], $attributes['description'], $form);
+            $this->embedTypeform($form_settings['form-url']);
         }
 
-        public function renderTypeform($show_title, $show_description, $form)
+        public function embedTypeform($form_url)
         {
-            
-            echo 'hola';
-            // $gf = new GFAPI();
-            // $form_data = $gf->get_form($form['id']);
-
-            // //getting if we have to render this typeform
-            // $form_settings = $this->get_form_settings($form_data);
-
-            // $new_form = [
-            //     'title'     => $form['title'],
-            //     'fields'    => $typeform_fields,
-            //     'design_id' => $form_settings['design-id']
-            // ];
-            // $this->parseTypeform($new_form);
-            // die();
+            echo '<iframe src="' . $form_url . '" height="500" width="100%">';
         }
 
-        
+        public function renderTypeform($form_url)
+        {
 
-        function parseTypeform($form){
+        ?>
+        <div class="typeform-widget" data-url="<?= $form_url; ?>" data-text="All fields" style="width:100%;height:500px;"></div>
 
-            $create_response = wp_remote_post($this->typeform_url . 'forms', [
-                'headers'   => [
-                    'X-API-TOKEN'   => $this->token
-                ],
-                'body'  => json_encode($form)
-            ]);
-
-            // echo '<pre>'; print_r($create_response); echo '</pre>';
-            if ( is_wp_error( $create_response ) ) {
-               $error_message = $create_response->get_error_message();
-               echo "Something went wrong: $error_message";
-            } else {
-               $this->print_form(json_decode($create_response['body']));
-
-            }
-        }
-
-        function print_form($form){
-
-            $link = $form->_links;
-            $href = '';
-
-            foreach($link as $l){
-                if($l->rel == 'form_render'){
-                    $href = $l->href;
-                    break;
-                }
-            }
-            ?>
-            <div class="typeform-widget" data-url="<?= $href; ?>" data-text="All fields" style="width:100%;height:500px;"></div>
-
-            <script>(function(){var qs,js,q,s,d=document,gi=d.getElementById,ce=d.createElement,gt=d.getElementsByTagName,id='typef_orm',b='https://s3-eu-west-1.amazonaws.com/share.typeform.com/';if(!gi.call(d,id)){js=ce.call(d,'script');js.id=id;js.src=b+'widget.js';q=gt.call(d,'script')[0];q.parentNode.insertBefore(js,q)}})()</script>
-            <?php
+        <script>(function(){var qs,js,q,s,d=document,gi=d.getElementById,ce=d.createElement,gt=d.getElementsByTagName,id='typef_orm',b='https://s3-eu-west-1.amazonaws.com/share.typeform.com/';if(!gi.call(d,id)){js=ce.call(d,'script');js.id=id;js.src=b+'widget.js';q=gt.call(d,'script')[0];q.parentNode.insertBefore(js,q)}})()</script>
+        <?php
         }
     }
 
