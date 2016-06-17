@@ -268,6 +268,23 @@ if (class_exists("GFForms")) {
                             ]
                         ]
                     ]
+                ],
+                [
+                    "title" => "Embed",
+                    "fields" => [
+                        [
+                            'label'     => 'Height',
+                            'type'      => 'text',
+                            'placeholder'   => '500px',
+                            'name'      => 'embed-height'
+                        ],
+                        [
+                            'label'     => 'Width',
+                            'type'      => 'text',
+                            'placeholder'   => '100%',
+                            'name'      => 'embed-width'
+                        ]
+                    ]
                 ]
             ];
         }
