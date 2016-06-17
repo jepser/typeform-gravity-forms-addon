@@ -40,21 +40,15 @@ class TypeformApi
         
         $design_args = TypeformHandler::setDesignFields($data);
 
-        // echo '<pre>'; print_r($design_args); echo '</pre>';
-
         $request = $this->makeCall('/designs', 'POST', $design_args);
         $response = $this->getResponse($request);
-
-        // echo '<pre>'; print_r($response); echo '</pre>';
-        // echo '<pre>'; print_r($form_meta[$this->_slug]); echo '</pre>';
 
         return $response;
     }
 
-    public function getFormId($data, $webhook, $title,  $tags = [])
+
+    public function getFormId($data, $webhook, $title, $tags = [], $design_id = false)
     {
-
-
         $form_fields = TypeformHandler::convertFields($data);
 
         $form_args = [
@@ -64,6 +58,10 @@ class TypeformApi
             'fields'    => $form_fields
         ];
 
+        if ($design_id) {
+            $form_args['design_id'] = $design_id;
+        }
+        
         $request = $this->makeCall('/forms', 'POST', $form_args);
         $response = $this->getResponse($request);
 

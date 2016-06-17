@@ -66,6 +66,14 @@ class TypeformHandler
         return (isset($available_fields[$field['type']])) ? $available_fields[$field['type']]: [];
     }
 
+    public static function getEntryStructure($data)
+    {
+        $structure = [
+            'form_id'   => 0
+        ];
+        return $structure;
+    }
+
     public static function setDesignFields($data)
     {
         $design_args = [
@@ -98,19 +106,23 @@ class TypeformHandler
     public static function convertField($field)
     {
 
+        $field_options = [];
+
         $new_field = [
             'question'      => $field['label'],
-            // 'description'   => $field['description'],
-            // 'required'      => ($field['isRequired']) ? true: false,
-            // 'tags'          => ['field-' . $field['id']]
+            'description'   => $field['description'],
+            'required'      => ($field['isRequired']) ? true: false,
+            'tags'          => ['field-' . $field['id']]
         ];
 
         $new_field['type'] = TypeformHandler::getFieldType($field);
-        // $new_field['choices'] = TypeformHandler::getFieldChoices($field);
 
-        // $field_options = TypeformHandler::getFieldOptions($field);
-        $field_options = [];
+        $choices = TypeformHandler::getFieldChoices($field);
+        if ($choices) {
+            $new_field['choices'] = $choices;
+        }
         
+        $field_options = TypeformHandler::getFieldOptions($field);
 
         return array_merge($new_field, $field_options);
     }
@@ -121,8 +133,11 @@ class TypeformHandler
         $new_field = [];
 
         foreach ($field_options as $key => $callback) {
-            if (is_callable($callbalck, true)) {
-                $new_field[$key] = $callback($data);
+            if (is_callable($callback)) {
+                $result = $callback($field);
+                if (!empty($result)) {
+                    $new_field[$key] = $result;
+                }
             } else {
                 $new_field[$key] = $callback;
             }
@@ -141,7 +156,7 @@ class TypeformHandler
     {
         $field_structure = TypeformHandler::getFieldStructure($field);
 
-        return (isset($field_structure['type'])) ? $field_structure['type']: 'text';
+        return (isset($field_structure['type'])) ? $field_structure['type']: [];
     }
 
     public static function getFieldChoices($field)
@@ -151,7 +166,7 @@ class TypeformHandler
 
         if ($structured_field['multiple']) {
             foreach ($field['choices'] as $option) {
-                $nchoices[] = [
+                $choices[] = [
                     'label' => $option['text']
                 ];
             }

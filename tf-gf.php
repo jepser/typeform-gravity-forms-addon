@@ -1,22 +1,18 @@
 <?php
 
-// add_action('init', 'gf_fields_post');
 
-// function gf_fields_post(){
-//     if(isset($_POST['gform-settings-save'])){
-//         echo '<pre>'; print_r($_POST); echo '</pre>';
-//         die();
-//     }
-// }
 
 if (class_exists("GFForms")) {
     GFForms::include_addon_framework();
 
-    class GFTypeformAddon extends GFAddOn {
+    class GFTypeformAddon extends GFAddOn
+    {
+
+        const ADDON_SLUG = 'typeform-gravity-forms-addon';
 
         protected $_version = "1.0";
         protected $_min_gravityforms_version = "1.8";
-        protected $_slug = "typeform-gravity-forms-addon";
+        protected $_slug = self::ADDON_SLUG;
         protected $_path = "typeform-gravity-forms-addon/index.php";
         protected $_full_path = __FILE__;
         protected $_title = "Typeform Add-On";
@@ -35,25 +31,32 @@ if (class_exists("GFForms")) {
 
             add_filter('gform_after_save_form', [$this, 'saveTypeformId']);
 
-            // add_filter('gform_form_update_meta', [ $this, 'saveDesign'], 10, 3);
-
-            // add_filter('gform_post_update_form_meta', [ $this, 'redirect_because_fail']);
-
         }
 
         public function save_form_settings($form, $settings)
         {
-            $design_id = $this->getDesign($settings);
-            $settings['design-id'] = $design_id;
+            if (!isset($settings['enable-typeform'])) {
+                $design_id = $this->getDesign($settings, $form);
+
+                if ($design_id) {
+                    $settings['design-id'] = $design_id;
+                    
+                    $response = $this->getTypeformData($form, $design_id);
+
+                    $settings['form-id'] = $response['uid'];
+                    $settings['form-url'] = $response['url'];
+                }
+            }
+
 
             return parent::save_form_settings($form, $settings);
         }
 
 
-        public function getDesign($settings)
+        public function getDesign($settings, $form)
         {
             try {
-                $response = $this->api->getDesignId($settings);
+                $response = $this->api->getDesignId($settings, $form);
                 return $response->id;
             } catch (Exception $e) {
                 return $e;
@@ -61,16 +64,14 @@ if (class_exists("GFForms")) {
             
         }
 
+
         public function saveTypeformId($form, $is_new = false)
         {
-            $response = $this->getTypeformData($form);
-            $form_id = $response->id;
-            $form_url = $this->getTypeformUrl($response->_links);
-
             $settings = parent::get_form_settings($form);
 
-            $settings['form-id'] = $form_id;
-            $settings['form-url'] = $form_url;
+            $response = $this->getTypeformData($form, $settings['design-id']);
+            $settings['form-id'] = $response->uid;
+            $settings['form-url'] = $response->url;
 
             return parent::save_form_settings($form, $settings);
 
@@ -85,11 +86,19 @@ if (class_exists("GFForms")) {
             }
         }
 
-        public function getTypeformData($form)
+        public function getTypeformData($form, $design_id)
         {
-            $webhook = apply_filters('typeform/webhook', add_query_arg('typeform-response', $form['id'], get_bloginfo('url')));
-            $response = $this->api->getFormId($form['fields'], $webhook, $form['title'], ['form-' . $form['id']]);            
-            return $response;
+            $webhook = apply_filters('typeform/webhook', add_query_arg('typeform-id', $form['id'], TypeformWebHook::getEndpointUrl()));
+            $response = $this->api->getFormId($form['fields'], $webhook, $form['title'], ['form-' . $form['id']], $design_id);
+            return $this->getTypeformEmbed($response);
+        }
+
+        public function getTypeformEmbed($response)
+        {
+            return [
+                'uid'   => $response->id,
+                'url'   => $this->getTypeformUrl($response->_links)
+            ];
         }
 
         public function form_settings_fields($form)
@@ -291,7 +300,6 @@ if (class_exists("GFForms")) {
 
         public function plugin_settings_fields()
         {
-
             return [
                 [
                     "title"  => __("Typeform Add-On Settings", 'tf-gf'),
@@ -314,79 +322,35 @@ if (class_exists("GFForms")) {
             return $value;
         }
 
-        public function scripts()
-        {
-            $scripts = array(
-                array("handle"  => "my_script_js",
-                      "src"     => $this->get_base_url() . "/js/my_script.js",
-                      "version" => $this->_version,
-                      "deps"    => array("jquery"),
-                      "strings" => array(
-                          'first'  => __("First Choice", "simpleaddon"),
-                          'second' => __("Second Choice", "simpleaddon"),
-                          'third'  => __("Third Choice", "simpleaddon")
-                      ),
-                      "enqueue" => array(
-                          array(
-                              "admin_page" => array("form_settings"),
-                              "tab"        => "simpleaddon"
-                          )
-                      )
-                ),
-
-            );
-
-            return array_merge(parent::scripts(), $scripts);
-        }
-
-        public function styles()
-        {
-
-            $styles = array(
-                array("handle"  => "my_styles_css",
-                      "src"     => $this->get_base_url() . "/css/my_styles.css",
-                      "version" => $this->_version,
-                      "enqueue" => array(
-                          array("field_types" => array("poll"))
-                      )
-                )
-            );
-
-            return array_merge(parent::styles(), $styles);
-        }
-
         public function getTypeform($shortcode_string, $attributes, $content)
         {
-            // var_dump($shortcode_string, $attributes, $content);
             $form_id = $attributes['id'];
             $gf = new GFAPI();
             $form = $gf->get_form($form_id);
 
             $form_settings = $this->get_form_settings($form);
 
-            // echo '<pre>'; print_r($form); echo '</pre>';
-            // echo '<pre>'; print_r($form_settings); echo '</pre>';
-
-            if (!$form_settings['enable-typeform'] || !isset($form_settings['form-id'])) {
+            if ($this->isTypeformEnabled($form_settings)) {
                 return $shortcode_string;
+            } else {
+                $this->embedTypeform($form_settings['form-url'], $form_settings['embed-width'], $form_settings['embed-height']);
             }
-
-            $this->embedTypeform($form_settings['form-url']);
         }
 
-        public function embedTypeform($form_url)
+        private function isTypeformEnabled($form_settings)
         {
-            echo '<iframe src="' . $form_url . '" height="500" width="100%">';
+            return (!$form_settings['enable-typeform'] || !isset($form_settings['form-id']));
         }
 
-        public function renderTypeform($form_url)
+        public function embedTypeform($form_url, $width = '100%', $height = '500px')
         {
-
-        ?>
-        <div class="typeform-widget" data-url="<?= $form_url; ?>" data-text="All fields" style="width:100%;height:500px;"></div>
-
-        <script>(function(){var qs,js,q,s,d=document,gi=d.getElementById,ce=d.createElement,gt=d.getElementsByTagName,id='typef_orm',b='https://s3-eu-west-1.amazonaws.com/share.typeform.com/';if(!gi.call(d,id)){js=ce.call(d,'script');js.id=id;js.src=b+'widget.js';q=gt.call(d,'script')[0];q.parentNode.insertBefore(js,q)}})()</script>
-        <?php
+            if (empty($height)) {
+                $height = '500px';
+            }
+            if (empty($width)) {
+                $width = '100%';
+            }
+            echo '<iframe src="' . $form_url . '" height="' . $height . '" width="' . $width . '">';
         }
     }
 
