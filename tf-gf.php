@@ -70,8 +70,9 @@ if (class_exists("GFForms")) {
             $settings = parent::get_form_settings($form);
 
             $response = $this->getTypeformData($form, $settings['design-id']);
-            $settings['form-id'] = $response->uid;
-            $settings['form-url'] = $response->url;
+
+            $settings['form-id'] = $response['uid'];
+            $settings['form-url'] = $response['url'];
 
             return parent::save_form_settings($form, $settings);
 
@@ -90,6 +91,7 @@ if (class_exists("GFForms")) {
         {
             $webhook = apply_filters('typeform/webhook', add_query_arg('typeform-id', $form['id'], TypeformWebHook::getEndpointUrl()));
             $response = $this->api->getFormId($form['fields'], $webhook, $form['title'], ['form-' . $form['id']], $design_id);
+
             return $this->getTypeformEmbed($response);
         }
 
