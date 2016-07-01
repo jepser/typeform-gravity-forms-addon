@@ -39,16 +39,18 @@ class TypeformWebHook
 
     private function setData($form_id, $data)
     {
-
         $parsed_data = $this->parseData($data);
 
         $form_data = $parsed_data;
         $form_data['form_id'] = $form_id;
         $form_data['status'] = 'active';
 
-        print_r(GFAPI::add_entry($form_data, $form_id));
         // die();
         // echo '<pre>'; print_r($data); echo '</pre>';
+
+        return [
+            'entry_id'  => GFAPI::add_entry($form_data, $form_id)
+        ];
     }
 
     private function parseData($data)
