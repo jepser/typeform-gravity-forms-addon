@@ -31,7 +31,13 @@ class TypeformWebHook
         $form_id = $this->getFormId();
 
         if ($this->verifyResponse($form_id, $data)) {
-            $this->setData($form_id, $data);
+            $entry_id = $this->setData($form_id, $data);
+            if ($entry_id) {
+                gform_update_meta($entry_id, 'typeform_data', $data);
+            }
+            return [
+                'entry_id'  => $entry_id
+            ];
         } else {
             throw new Exception(__('No verificable data response', 'typeform'));
         }
@@ -39,6 +45,9 @@ class TypeformWebHook
 
     private function setData($form_id, $data)
     {
+
+        echo update_option('typeform-data', $data);
+        die('guardo local');
         $parsed_data = $this->parseData($data);
 
         $form_data = $parsed_data;
@@ -48,25 +57,30 @@ class TypeformWebHook
         // die();
         // echo '<pre>'; print_r($data); echo '</pre>';
 
-        return [
-            'entry_id'  => GFAPI::add_entry($form_data, $form_id)
-        ];
+        return GFAPI::add_entry($form_data, $form_id);
     }
 
     private function parseData($data)
     {
-        $answers = $data->answers;
+        $answers = $this->getAnswers($data);
         $fields = [];
-        // echo '<pre>'; print_r($data); echo '</pre>';
+        echo '<pre>'; print_r($data); echo '</pre>';
         // echo '<pre>'; var_dump(GFAPI::get_entries(1)); echo '</pre>';
 
         foreach ($answers as $answer) {
             $converted_field = $this->getGfField($answer);
-            $fields[$converted_field['key']] = $converted_field['value'];
+            if ($converted_field) {
+                $fields[$converted_field['key']] = $converted_field['value'];
+            }
         }
         // echo '<pre>'; print_r($fields); echo '</pre>';
-        // die();
+        die();
         return $fields;
+    }
+
+    private function getAnswers($data)
+    {
+        return $data->anwsers;
     }
 
     private function getGfField($answer)
@@ -142,9 +156,9 @@ class TypeformWebHook
 
     public function getResponseData()
     {
-        $typeform_data = file_get_contents('php://input');
+        // $typeform_data = file_get_contents('php://input');
 
-        // $typeform_data = get_option('typeform-data');
+        $typeform_data = json_encode(get_option('typeform-data'));
         if (!isset($typeform_data)) {
             throw new Exception(__('No typeform data'));
         }
@@ -159,7 +173,7 @@ class TypeformWebHook
 
     public static function getEndpointUrl()
     {
-        return 'http://17aec997.ngrok.io/typeform-wh/';
+        return 'http://69db3c0b.ngrok.io/typeform-wh/';
         if (self::isPrettyUrls()) {
             return get_bloginfo('url') . '/' . self::SLUG;
         } else {
