@@ -361,4 +361,15 @@ if (class_exists("GFForms")) {
     }
 
     new GFTypeformAddon();
+} else {
+    add_action('admin_notices', 'installGfTf');
+
+    function installGfTf()
+    {
+        ?>
+        <div class="error notice">
+            <p><?php _e( 'Please install Gravity Forms to use this addon', 'typeform' ); ?></p>
+        </div>
+        <?php
+    }
 }
