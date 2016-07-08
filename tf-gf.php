@@ -335,6 +335,7 @@ if (class_exists("GFForms")) {
             if ($this->isTypeformEnabled($form_settings)) {
                 return $shortcode_string;
             } else {
+                RGFormsModel::insert_form_view($form_id, $_SERVER['REMOTE_ADDR']);
                 $this->embedTypeform($form_settings['form-url'], $form_settings['embed-width'], $form_settings['embed-height']);
             }
         }

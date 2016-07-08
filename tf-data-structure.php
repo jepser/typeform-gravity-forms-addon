@@ -164,7 +164,7 @@ class TypeformHandler
         $structured_field = TypeformHandler::getFieldStructure($field);
         $choices = [];
 
-        if ($structured_field['multiple']) {
+        if (isset($structured_field['multiple']) && $structured_field['multiple']) {
             foreach ($field['choices'] as $option) {
                 $choices[] = [
                     'label' => $option['text']

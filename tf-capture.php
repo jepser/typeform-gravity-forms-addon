@@ -46,8 +46,8 @@ class TypeformWebHook
     private function setData($form_id, $data)
     {
 
-        echo update_option('typeform-data', $data);
-        die('guardo local');
+        // echo update_option('typeform-data', $data);
+        // die('guardo local');
         $parsed_data = $this->parseData($data);
 
         $form_data = $parsed_data;
@@ -64,23 +64,37 @@ class TypeformWebHook
     {
         $answers = $this->getAnswers($data);
         $fields = [];
-        echo '<pre>'; print_r($data); echo '</pre>';
+        // echo '<pre>'; print_r($answers); echo '</pre>';
         // echo '<pre>'; var_dump(GFAPI::get_entries(1)); echo '</pre>';
 
         foreach ($answers as $answer) {
             $converted_field = $this->getGfField($answer);
             if ($converted_field) {
-                $fields[$converted_field['key']] = $converted_field['value'];
+                $this->addField($fields, $converted_field);
             }
         }
         // echo '<pre>'; print_r($fields); echo '</pre>';
-        die();
+        // die();
         return $fields;
+    }
+
+    private function addField(&$fields, $converted_field)
+    {
+        $value = $converted_field['value'];
+        $key = $converted_field['key'];
+        if (is_array($value)) {
+            foreach ($value as $i => $v) {
+                $fields[$key . '.' . ($i + 1)] = $v;
+            }
+        } else {
+            $fields[$key] = $value;
+        }
+        
     }
 
     private function getAnswers($data)
     {
-        return $data->anwsers;
+        return $data->answers;
     }
 
     private function getGfField($answer)
@@ -107,19 +121,15 @@ class TypeformWebHook
     private function getFieldValue($answer)
     {
         $type = $answer->type;
-        if (in_array($type, ['select'])) {
-            return '';
+        $value = $answer->value;
+        if ($type == 'choice') {
+            return $value->label;
+        } elseif ($type == 'choices') {
+            return $value->labels;
         } elseif ($type == 'number') {
-            return $answer->value->amount;
+            return $value->amount;
         } else {
-            return $answer->value;
-        }
-    }
-
-    private function saveFields($fields)
-    {
-        if (empty($fiels)) {
-            throw new Exception(__('No fields in answer', 'typeform'));
+            return $value;
         }
     }
 
@@ -156,9 +166,9 @@ class TypeformWebHook
 
     public function getResponseData()
     {
-        // $typeform_data = file_get_contents('php://input');
+        $typeform_data = file_get_contents('php://input');
 
-        $typeform_data = json_encode(get_option('typeform-data'));
+        // $typeform_data = json_encode(get_option('typeform-data'));
         if (!isset($typeform_data)) {
             throw new Exception(__('No typeform data'));
         }
@@ -173,7 +183,7 @@ class TypeformWebHook
 
     public static function getEndpointUrl()
     {
-        return 'http://69db3c0b.ngrok.io/typeform-wh/';
+        return 'http://23538431.ngrok.io/typeform-wh/';
         if (self::isPrettyUrls()) {
             return get_bloginfo('url') . '/' . self::SLUG;
         } else {
