@@ -35,31 +35,29 @@ if (class_exists("GFForms")) {
 
         public function save_form_settings($form, $settings)
         {
-            if (!isset($settings['enable-typeform'])) {
+            if ($this->isTypeformEnabled($settings)) {
                 $design_id = $this->getDesign($settings, $form);
 
-                if ($design_id) {
+                if ($design_id != null) {
                     $settings['design-id'] = $design_id;
-                    
+                }
                     $response = $this->getTypeformData($form, $design_id);
 
                     $settings['form-id'] = $response['uid'];
                     $settings['form-url'] = $response['url'];
-                }
             }
-
 
             return parent::save_form_settings($form, $settings);
         }
 
 
-        public function getDesign($settings, $form)
+        private function getDesign($settings, $form)
         {
             try {
                 $response = $this->api->getDesignId($settings, $form);
                 return $response->id;
             } catch (Exception $e) {
-                return $e;
+                return null;
             }
             
         }
@@ -69,16 +67,19 @@ if (class_exists("GFForms")) {
         {
             $settings = parent::get_form_settings($form);
 
-            $response = $this->getTypeformData($form, $settings['design-id']);
+            if ($this->isTypeformEnabled($settings)) {
+                $response = $this->getTypeformData($form, $settings['design-id']);
 
-            $settings['form-id'] = $response['uid'];
-            $settings['form-url'] = $response['url'];
+                $settings['form-id'] = $response['uid'];
+                $settings['form-url'] = $response['url'];
+            }
 
             return parent::save_form_settings($form, $settings);
 
         }
 
-        public function getTypeformUrl($typeform_links)
+
+        private function getTypeformUrl($typeform_links)
         {
             foreach ($typeform_links as $link) {
                 if ($link->rel == 'form_render') {
@@ -87,7 +88,7 @@ if (class_exists("GFForms")) {
             }
         }
 
-        public function getTypeformData($form, $design_id)
+        public function getTypeformData($form, $design_id = null)
         {
             $webhook = apply_filters('typeform/webhook', add_query_arg('typeform-id', $form['id'], TypeformWebHook::getEndpointUrl()));
             $response = $this->api->getFormId($form['fields'], $webhook, $form['title'], ['form-' . $form['id']], $design_id);
@@ -333,16 +334,18 @@ if (class_exists("GFForms")) {
             $form_settings = $this->get_form_settings($form);
 
             if ($this->isTypeformEnabled($form_settings)) {
-                return $shortcode_string;
-            } else {
-                RGFormsModel::insert_form_view($form_id, $_SERVER['REMOTE_ADDR']);
+                if (!is_user_logged_in()) {
+                    RGFormsModel::insert_form_view($form_id, $_SERVER['REMOTE_ADDR']);
+                }
                 $this->embedTypeform($form_settings['form-url'], $form_settings['embed-width'], $form_settings['embed-height']);
+            } else {
+                return $shortcode_string;
             }
         }
 
         private function isTypeformEnabled($form_settings)
         {
-            return (!$form_settings['enable-typeform'] || !isset($form_settings['form-id']));
+            return (isset($form_settings['enable-typeform']) && $form_settings['enable-typeform']);
         }
 
         public function embedTypeform($form_url, $width = '100%', $height = '500px')

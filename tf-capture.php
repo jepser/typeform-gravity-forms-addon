@@ -34,6 +34,7 @@ class TypeformWebHook
             $entry_id = $this->setData($form_id, $data);
             if ($entry_id) {
                 gform_update_meta($entry_id, 'typeform_data', $data);
+                $this->sendNotifications($form_id, $entry_id);
             }
             return [
                 'entry_id'  => $entry_id
@@ -45,17 +46,11 @@ class TypeformWebHook
 
     private function setData($form_id, $data)
     {
-
-        // echo update_option('typeform-data', $data);
-        // die('guardo local');
         $parsed_data = $this->parseData($data);
 
         $form_data = $parsed_data;
         $form_data['form_id'] = $form_id;
         $form_data['status'] = 'active';
-
-        // die();
-        // echo '<pre>'; print_r($data); echo '</pre>';
 
         return GFAPI::add_entry($form_data, $form_id);
     }
@@ -64,8 +59,6 @@ class TypeformWebHook
     {
         $answers = $this->getAnswers($data);
         $fields = [];
-        // echo '<pre>'; print_r($answers); echo '</pre>';
-        // echo '<pre>'; var_dump(GFAPI::get_entries(1)); echo '</pre>';
 
         foreach ($answers as $answer) {
             $converted_field = $this->getGfField($answer);
@@ -73,8 +66,6 @@ class TypeformWebHook
                 $this->addField($fields, $converted_field);
             }
         }
-        // echo '<pre>'; print_r($fields); echo '</pre>';
-        // die();
         return $fields;
     }
 
@@ -82,9 +73,14 @@ class TypeformWebHook
     {
         $value = $converted_field['value'];
         $key = $converted_field['key'];
+        $type = $converted_field['type'];
         if (is_array($value)) {
-            foreach ($value as $i => $v) {
-                $fields[$key . '.' . ($i + 1)] = $v;
+            if ($type == 'multiselect') {
+                $fields[$key] = implode(',', $value);
+            } else {
+                foreach ($value as $i => $v) {
+                    $fields[$key . '.' . ($i + 1)] = $v;
+                }
             }
         } else {
             $fields[$key] = $value;
@@ -101,20 +97,32 @@ class TypeformWebHook
     {
         $field_id = $this->getFieldId($answer);
         $field_value = $this->getFieldValue($answer);
+        $field_type = $this->getFieldType($answer);
 
         return [
             'key'   => $field_id,
-            'value' => $field_value
+            'value' => $field_value,
+            'type'  => $field_type
         ];
     }
 
     private function getFieldId($answer)
     {
-        if ($answer->tags[0]) {
-            $field_raw_id = explode('-', $answer->tags[0]);
+        return $this->getFieldMeta($answer, 0);
+    }
+
+    private function getFieldType($answer)
+    {
+        return $this->getFieldMeta($answer, 1);
+    }
+
+    private function getFieldMeta($answer, $position)
+    {
+        if ($answer->tags[$position]) {
+            $field_raw_id = explode('-', $answer->tags[$position]);
             return $field_raw_id[1];
         } else {
-            throw new Exception(__('No field id'));
+            throw new Exception(__('No field type'));
         }
     }
 
@@ -135,14 +143,7 @@ class TypeformWebHook
 
     private function verifyResponse($form_id, $data)
     {
-        $form_data = $this->getFormData($form_id);
-        // echo '<pre>'; print_r($form_data); echo '</pre>';
-        
-        // if(isset($settings['form-id']) && $settings['form-id'] == $data->) {
-
-        // }
         return true;
-
     }
 
     private function getFormData($form_id)
@@ -151,7 +152,6 @@ class TypeformWebHook
         $form = $gf->get_form($form_id);
         return [
             'settings'  => $form[GFTypeformAddon::ADDON_SLUG],
-            // 'data'      => $form,
             'entries'   => $gf->get_entries($form_id)
         ];
     }
@@ -167,12 +167,17 @@ class TypeformWebHook
     public function getResponseData()
     {
         $typeform_data = file_get_contents('php://input');
-
-        // $typeform_data = json_encode(get_option('typeform-data'));
         if (!isset($typeform_data)) {
             throw new Exception(__('No typeform data'));
         }
         return json_decode($typeform_data);
+    }
+
+    private function sendNotifications($form_id, $entry_id)
+    {
+        $form = GFAPI::get_form($form_id);
+        $entry = GFAPI::get_entry($entry_id);
+        GFAPI::send_notifications($form, $entry);
     }
 
     public function isEndpointCalled()
@@ -183,7 +188,6 @@ class TypeformWebHook
 
     public static function getEndpointUrl()
     {
-        return 'http://23538431.ngrok.io/typeform-wh/';
         if (self::isPrettyUrls()) {
             return get_bloginfo('url') . '/' . self::SLUG;
         } else {

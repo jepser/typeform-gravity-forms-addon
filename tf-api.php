@@ -43,12 +43,18 @@ class TypeformApi
         $request = $this->makeCall('/designs', 'POST', $design_args);
         $response = $this->getResponse($request);
 
-        return $response;
+        if (isset($response->id)) {
+            return $response;
+        } else {
+            throw new Exception(__('No required fields for design'));
+        }
+        
     }
 
 
-    public function getFormId($data, $webhook, $title, $tags = [], $design_id = false)
+    public function getFormId($data, $webhook, $title, $tags = [], $design_id = null)
     {
+
         $form_fields = TypeformHandler::convertFields($data);
 
         $form_args = [
@@ -58,7 +64,7 @@ class TypeformApi
             'fields'    => $form_fields
         ];
 
-        if ($design_id) {
+        if ($design_id != null) {
             $form_args['design_id'] = $design_id;
         }
         

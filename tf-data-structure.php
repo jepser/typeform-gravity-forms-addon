@@ -45,6 +45,13 @@ class TypeformHandler
                     'allow_multiple_selections' => true
                 ]
             ],
+            'multiselect'  => [
+                'type'  => 'multiple_choice',
+                'multiple'  => true,
+                'options'   => [
+                    'allow_multiple_selections' => true
+                ]
+            ],
             'number'    => [
                 'type'  => 'number',
                 'options'   => [
@@ -112,7 +119,7 @@ class TypeformHandler
             'question'      => $field['label'],
             'description'   => $field['description'],
             'required'      => ($field['isRequired']) ? true: false,
-            'tags'          => ['field-' . $field['id']]
+            'tags'          => ['field-' . $field['id'], 'type-' . $field['type']]
         ];
 
         $new_field['type'] = TypeformHandler::getFieldType($field);
