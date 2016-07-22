@@ -188,6 +188,7 @@ class TypeformWebHook
 
     public static function getEndpointUrl()
     {
+        return 'http://4500dfa3.ngrok.io/typeform-wh/';
         if (self::isPrettyUrls()) {
             return get_bloginfo('url') . '/' . self::SLUG;
         } else {

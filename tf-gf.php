@@ -22,29 +22,54 @@ if (class_exists("GFForms")) {
         {
             parent::init();
 
-            $token = $this->get_plugin_setting('typeform-token');
-            $this->api = new TypeformApi($token);
-            $this->timesSaved = 0;
-
+            $this->token = $this->get_plugin_setting('typeform-token');
 
             add_filter('gform_shortcode_form', [$this, 'getTypeform'], 1, 3);
 
             add_filter('gform_after_save_form', [$this, 'saveTypeformId']);
 
+            if ($this->hasTokenAdded()) {
+                $this->api = new TypeformApi($this->token);
+                $this->timesSaved = 0;
+            } else {
+                add_action('admin_notices', [$this, 'checkIfToken']);
+            }
+        }
+
+        private function hasTokenAdded()
+        {
+            return ($this->token && !empty($this->token)) ? true: false;
+        }
+
+        public function checkIfToken()
+        {
+            ?>
+            <div class="notice notice-warning is-dismissible">
+                <p><?php _e( 'Please add your <a href="http://typeform.io/" target="_blank">Typeform Token</a> to make the addon work.', 'typeform' ); ?></p>
+            </div>
+            <?php
         }
 
         public function save_form_settings($form, $settings)
         {
-            if ($this->isTypeformEnabled($settings)) {
-                $design_id = $this->getDesign($settings, $form);
 
-                if ($design_id != null) {
-                    $settings['design-id'] = $design_id;
-                }
+            if ($this->isTypeformEnabled($settings)) {
+                if ($this->hasTokenAdded()) {
+                    $design_id = $this->getDesign($settings, $form);
+
+                    if ($design_id != null) {
+                        $settings['design-id'] = $design_id;
+                    }
                     $response = $this->getTypeformData($form, $design_id);
 
                     $settings['form-id'] = $response['uid'];
                     $settings['form-url'] = $response['url'];
+
+                } else {
+                    GFCommon::add_error_message(__('Remember to add your Typeform token in order to render an updated/new typeform.'));
+                }
+            } else {
+                $settings['enable-typeform'] = false;
             }
 
             return parent::save_form_settings($form, $settings);
@@ -67,11 +92,17 @@ if (class_exists("GFForms")) {
         {
             $settings = parent::get_form_settings($form);
 
-            if ($this->isTypeformEnabled($settings)) {
-                $response = $this->getTypeformData($form, $settings['design-id']);
 
-                $settings['form-id'] = $response['uid'];
-                $settings['form-url'] = $response['url'];
+            if ($this->isTypeformEnabled($settings)) {
+                if ($this->hasTokenAdded()) {
+                    $response = $this->getTypeformData($form, $settings['design-id']);
+
+                    $form_url = $response['url'];
+
+                    $settings['form-id'] = $response['uid'];
+                    $settings['form-url'] = $form_url;
+
+                }
             }
 
             return parent::save_form_settings($form, $settings);
@@ -121,7 +152,8 @@ if (class_exists("GFForms")) {
                                     "label" => "Enabled",
                                     "name"  => "enable-typeform"
                                 ]
-                            ]
+                            ],
+                            'feedback_callback' => [$this, 'is_valid_setting']
                         ],
                     ]
                 ],
@@ -313,7 +345,6 @@ if (class_exists("GFForms")) {
                             "label"   => __("Typeform IO Token", 'tf-gf'),
                             "type"    => "text",
                             "class"   => "large",
-                            "feedback_callback" => [$this, "is_valid_setting"]
                         ]
                     ]
                 ]
@@ -322,7 +353,7 @@ if (class_exists("GFForms")) {
 
         public function is_valid_setting($value)
         {
-            return $value;
+            return $this->hasTokenAdded();
         }
 
         public function getTypeform($shortcode_string, $attributes, $content)
@@ -333,7 +364,7 @@ if (class_exists("GFForms")) {
 
             $form_settings = $this->get_form_settings($form);
 
-            if ($this->isTypeformEnabled($form_settings)) {
+            if ($this->isTypeformEnabled($form_settings) && !empty($form_settings['form-url'])) {
                 if (!is_user_logged_in()) {
                     RGFormsModel::insert_form_view($form_id, $_SERVER['REMOTE_ADDR']);
                 }
@@ -356,7 +387,7 @@ if (class_exists("GFForms")) {
             if (empty($width)) {
                 $width = '100%';
             }
-            echo '<iframe src="' . $form_url . '" height="' . $height . '" width="' . $width . '">';
+            echo '<iframe src="' . $form_url . '" height="' . $height . '" width="' . $width . '" style="border:0;">';
         }
     }
 

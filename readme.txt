@@ -1,5 +1,5 @@
 === Gravity Forms + Typeform Addon ===
-Contributors: jepser
+Contributors: jepser, typeform
 Tags: forms, survey, gravity forms, typeform
 Requires at least: 3.5
 Tested up to: 4.5.3
@@ -11,10 +11,10 @@ This plugin is part of Typeformize family, it adds the beauty of Typeform into G
 
 == Description ==
 
-Now you can typeformize forms generated with Gravity Forms in to Typeform.
+Now you can typeformize forms generated with Gravity Forms into Typeform.
 
 > <strong> Note: </strong><br>
-> This is a MVP for Gravity Forms addon, any suggestions send them to the plugin forum. 
+> This is a MVP for Gravity Forms addon, any suggestions send them thru the plugin forum. 
 
 <strong>Roadmap:</strong>
 
@@ -58,7 +58,9 @@ At the moment it's only integrated with Gravity Forms, if you have a Typeform ac
 
 == Screenshots ==
 
-Screenshots soon.
+1. Addon Token ID settings page
+2. Form Settings, click "Enable Typeform render" for enable Typeform super powers
+3. A Typeform rendered :)
 
 == Changelog ==
 
