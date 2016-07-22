@@ -3,9 +3,8 @@
 class TypeformHandler
 {
 
-    public static function getFieldStructure($field)
+    private static function getFields()
     {
-
         $available_fields = [
             'text'      => [
                 'type'  => 'short_text',
@@ -70,6 +69,14 @@ class TypeformHandler
             ]
         ];
 
+        return $available_fields;
+    }
+
+
+    public static function getFieldStructure($field)
+    {
+        $available_fields = self::getFields();
+
         return (isset($available_fields[$field['type']])) ? $available_fields[$field['type']]: [];
     }
 
@@ -104,7 +111,11 @@ class TypeformHandler
         $converted_fields = [];
 
         foreach ($fields as $field) {
-            $converted_fields[] = TypeformHandler::convertField($field);
+            $c_field = TypeformHandler::convertField($field);
+
+            if ($c_field) {
+                $converted_fields[] = TypeformHandler::convertField($field);
+            }
         }
 
         return $converted_fields;
@@ -112,6 +123,10 @@ class TypeformHandler
 
     public static function convertField($field)
     {
+
+        if(!self::isValidField($field)) {
+            return false;
+        }
 
         $field_options = [];
 
@@ -132,6 +147,16 @@ class TypeformHandler
         $field_options = TypeformHandler::getFieldOptions($field);
 
         return array_merge($new_field, $field_options);
+    }
+
+    public static function isValidField($field)
+    {
+        return in_array($field['type'], self::availableFields());
+    }
+
+    public static function availableFields()
+    {
+        return array_keys(self::getFields());
     }
 
     public static function getFieldOptions($field)

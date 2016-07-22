@@ -56,6 +56,22 @@ Go to https://typeform.io and click "Grab your API-key" and fill the typeform, y
 
 At the moment it's only integrated with Gravity Forms, if you have a Typeform account, please refer to this plugin: http://wordpress.org/plugins/typeform
 
+= Some of my fields don't show in my typeform =
+
+Not all fields are supported, those are ignored in the rendering (sorry). These are the supported fields:
+
+*   Single Line Text
+*   Paragraph Text
+*   Dropdown
+*   Multi Select
+*   Number
+*   Checkboxes
+*   Radio Buttons
+*   Email
+
+= I'm getting errors with array() =
+I'm using simple syntax for arrays and other things, supported from PHP 5.3.
+
 == Screenshots ==
 
 1. Addon Token ID settings page
@@ -63,6 +79,10 @@ At the moment it's only integrated with Gravity Forms, if you have a Typeform ac
 3. A Typeform rendered :)
 
 == Changelog ==
+
+= 0.2 =
+* Fix issues with not supported fields
+* Added new validation messages helping configure the plugin
 
 = 0.1 =
 First version of plugin, mvp.
