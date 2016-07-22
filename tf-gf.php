@@ -10,8 +10,8 @@ if (class_exists("GFForms")) {
 
         const ADDON_SLUG = 'typeform-gravity-forms-addon';
 
-        protected $_version = "1.0";
-        protected $_min_gravityforms_version = "1.8";
+        protected $_version = "1.1";
+        protected $_min_gravityforms_version = "1.9";
         protected $_slug = self::ADDON_SLUG;
         protected $_path = "typeform-gravity-forms-addon/index.php";
         protected $_full_path = __FILE__;
